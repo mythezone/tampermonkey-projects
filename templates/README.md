@@ -10,6 +10,8 @@
   - schema 驱动配置字段定义片段
 - `config-modal.snippet.js`
   - overlay + modal 配置界面片段
+- `floating-dock.snippet.js`
+  - 常驻右上角折叠 dock 片段
 - `script-readme-template.md`
   - 子脚本 README 模板
 
@@ -18,4 +20,3 @@
 - 先阅读 `docs/` 中的规则
 - 再从这个目录挑选最接近的模板或片段复用
 - 模板是起点，不是硬性限制；但默认应优先保持一致
-

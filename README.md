@@ -23,4 +23,4 @@
 
 | Name | Directory | Description | Status |
 | --- | --- | --- | --- |
-| Send Current URL to Webhook | `scripts/send-current-url-to-webhook/` | 在页面右上角显示一个滑出按钮，点击后把当前页面 URL 通过 POST 发送到 webhook。支持 `Alt+C` 配置界面、Basic Auth 和域名白名单。 | Ready |
+| Send Current URL to Webhook | `scripts/send-current-url-to-webhook/` | 在页面右上角显示一个始终可见的折叠控制条，包含 `pin`、`send`、`config` 图标按钮。支持 `Alt+C` 配置界面、Basic Auth 和域名白名单。 | Ready |

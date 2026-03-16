@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Send Current URL to Webhook
 // @namespace    https://github.com/mythezone/tampermonkey-projects
-// @version      1.1.0
-// @description  Add a slide-out button that POSTs the current page URL to a webhook.
+// @version      1.2.0
+// @description  Add a slide-out control dock that POSTs the current page URL to a webhook.
 // @author       mythezone
 // @match        *://*/*
 // @run-at       document-idle
@@ -16,15 +16,12 @@
 (function () {
   'use strict';
 
-  const BUTTON_ID = 'tm-send-url-to-webhook-button';
+  const DOCK_ID = 'tm-send-url-to-webhook-dock';
   const MODAL_ID = 'tm-send-url-to-webhook-modal';
   const OVERLAY_ID = 'tm-send-url-to-webhook-overlay';
-  const STORAGE_KEY = 'tm-send-url-to-webhook-config';
+  const CONFIG_STORAGE_KEY = 'tm-send-url-to-webhook-config';
+  const UI_STORAGE_KEY = 'tm-send-url-to-webhook-ui';
   const SHORTCUT_HINT = 'Alt+C';
-  const DEFAULT_LABEL = 'Send URL';
-  const SENDING_LABEL = 'Sending...';
-  const SUCCESS_LABEL = 'Sent';
-  const ERROR_LABEL = 'Failed';
   const DEFAULT_CONFIG = {
     webhookUrl: '',
     auth: {
@@ -32,6 +29,9 @@
       password: '',
     },
     enabledDomains: [],
+  };
+  const DEFAULT_UI_STATE = {
+    pinned: false,
   };
   const CONFIG_SCHEMA = [
     {
@@ -42,7 +42,7 @@
           label: 'Webhook URL',
           type: 'url',
           placeholder: 'https://your-webhook.example.com/endpoint',
-          description: '点击发送按钮时，当前页面 URL 会被 POST 到这里。',
+          description: 'Click send to POST the current page URL to this webhook.',
         },
       ],
     },
@@ -54,14 +54,14 @@
           label: 'User',
           type: 'text',
           placeholder: 'username',
-          description: '留空则不发送 Authorization 请求头。',
+          description: 'Leave empty to skip the Authorization header.',
         },
         {
           path: 'auth.password',
           label: 'Password',
           type: 'password',
           placeholder: 'password',
-          description: '和用户名一起组成 Basic Auth。',
+          description: 'Paired with the username as Basic Auth.',
         },
       ],
     },
@@ -73,59 +73,144 @@
           label: 'Domain List',
           type: 'textarea',
           placeholder: 'example.com\nnews.example.org\n*',
-          description: '每行一个域名。支持子域名匹配，填 * 表示全部启用。',
+          description: 'One domain per line. Supports subdomains. Use * for all domains.',
         },
       ],
     },
   ];
 
   let config = loadConfig();
-  let button = null;
+  let uiState = loadUiState();
+  let dock = null;
+  let handleButton = null;
+  let pinButton = null;
+  let sendButton = null;
+  let configButton = null;
   let overlay = null;
   let form = null;
 
   GM_addStyle(`
-    #${BUTTON_ID} {
+    #${DOCK_ID} {
       position: fixed;
       top: 20px;
-      right: -138px;
+      right: 0;
       z-index: 2147483647;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 174px;
+      padding: 8px 8px 8px 10px;
+      border-radius: 16px 0 0 16px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%);
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.32);
+      transform: translateX(calc(100% - 18px));
+      transition: transform 180ms ease, box-shadow 180ms ease;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #${DOCK_ID}[data-open="true"],
+    #${DOCK_ID}[data-pinned="true"],
+    #${DOCK_ID}:hover,
+    #${DOCK_ID}:focus-within {
+      transform: translateX(0);
+      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.36);
+    }
+
+    #${DOCK_ID} * {
+      box-sizing: border-box;
+    }
+
+    #${DOCK_ID} .tm-dock-handle {
+      flex: 0 0 auto;
+      width: 18px;
+      height: 38px;
+      margin-left: -2px;
+      padding: 0;
+      border: 0;
+      border-radius: 999px 0 0 999px;
+      background: linear-gradient(180deg, #38bdf8 0%, #2563eb 100%);
+      color: #eff6ff;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 176px;
-      height: 46px;
-      padding: 0 16px;
+      opacity: 0.96;
+    }
+
+    #${DOCK_ID} .tm-dock-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #${DOCK_ID} .tm-icon-button {
+      flex: 0 0 auto;
+      width: 36px;
+      height: 36px;
+      padding: 0;
       border: 0;
-      border-radius: 12px 0 0 12px;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.28);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.12);
       color: #f8fafc;
       cursor: pointer;
-      font: 600 14px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      letter-spacing: 0.02em;
-      transition: right 180ms ease, opacity 180ms ease, background 180ms ease;
-      opacity: 0.94;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 140ms ease, transform 140ms ease, opacity 140ms ease;
     }
 
-    #${BUTTON_ID}:hover,
-    #${BUTTON_ID}:focus-visible {
-      right: 0;
-      opacity: 1;
+    #${DOCK_ID} .tm-icon-button:hover,
+    #${DOCK_ID} .tm-icon-button:focus-visible,
+    #${DOCK_ID} .tm-dock-handle:hover,
+    #${DOCK_ID} .tm-dock-handle:focus-visible {
       outline: none;
+      transform: translateY(-1px);
     }
 
-    #${BUTTON_ID}[data-state="sending"] {
+    #${DOCK_ID} .tm-icon-button:hover,
+    #${DOCK_ID} .tm-icon-button:focus-visible {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    #${DOCK_ID} .tm-dock-handle:hover,
+    #${DOCK_ID} .tm-dock-handle:focus-visible {
+      background: linear-gradient(180deg, #0ea5e9 0%, #1d4ed8 100%);
+    }
+
+    #${DOCK_ID} .tm-icon-button svg,
+    #${DOCK_ID} .tm-dock-handle svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+
+    #${DOCK_ID} .tm-icon-button[data-active="true"] {
+      background: rgba(56, 189, 248, 0.26);
+      color: #7dd3fc;
+    }
+
+    #${DOCK_ID} .tm-icon-button[data-state="sending"] {
+      background: rgba(37, 99, 235, 0.34);
+      color: #bfdbfe;
       cursor: progress;
-      background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
     }
 
-    #${BUTTON_ID}[data-state="success"] {
-      background: linear-gradient(135deg, #15803d 0%, #16a34a 100%);
+    #${DOCK_ID} .tm-icon-button[data-state="success"] {
+      background: rgba(22, 163, 74, 0.28);
+      color: #bbf7d0;
     }
 
-    #${BUTTON_ID}[data-state="error"] {
-      background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+    #${DOCK_ID} .tm-icon-button[data-state="error"] {
+      background: rgba(220, 38, 38, 0.3);
+      color: #fecaca;
+    }
+
+    #${DOCK_ID} .tm-icon-button:disabled {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(248, 250, 252, 0.42);
+      cursor: not-allowed;
+      transform: none;
     }
 
     #${OVERLAY_ID} {
@@ -298,19 +383,143 @@
 
   installConfigModal();
   installKeyboardShortcut();
-  renderButton();
+  renderDock();
+  syncDockState();
 
-  function sendCurrentUrl() {
-    if (!button) {
+  function renderDock() {
+    if (document.getElementById(DOCK_ID)) {
+      dock = document.getElementById(DOCK_ID);
       return;
     }
 
-    if (button.dataset.state === 'sending') {
+    dock = document.createElement('div');
+    dock.id = DOCK_ID;
+    dock.dataset.open = 'false';
+    dock.dataset.pinned = String(!!uiState.pinned);
+
+    handleButton = createIconButton('Open webhook tools', 'handle', iconGrip());
+    handleButton.className = 'tm-dock-handle';
+    handleButton.addEventListener('click', toggleDockOpen);
+
+    const actions = document.createElement('div');
+    actions.className = 'tm-dock-actions';
+
+    pinButton = createIconButton('Pin dock', 'pin', iconPin());
+    pinButton.addEventListener('click', togglePin);
+
+    sendButton = createIconButton('Send current URL to webhook', 'send', iconSend());
+    sendButton.addEventListener('click', sendCurrentUrl);
+
+    configButton = createIconButton(`Open config (${SHORTCUT_HINT})`, 'config', iconSettings());
+    configButton.addEventListener('click', openConfigModal);
+
+    actions.appendChild(pinButton);
+    actions.appendChild(sendButton);
+    actions.appendChild(configButton);
+
+    dock.appendChild(handleButton);
+    dock.appendChild(actions);
+
+    dock.addEventListener('mouseenter', () => {
+      dock.dataset.open = 'true';
+    });
+
+    dock.addEventListener('mouseleave', () => {
+      if (!uiState.pinned) {
+        dock.dataset.open = 'false';
+      }
+    });
+
+    dock.addEventListener('focusin', () => {
+      dock.dataset.open = 'true';
+    });
+
+    dock.addEventListener('focusout', () => {
+      window.setTimeout(() => {
+        if (!dock.contains(document.activeElement) && !uiState.pinned) {
+          dock.dataset.open = 'false';
+        }
+      }, 0);
+    });
+
+    document.body.appendChild(dock);
+  }
+
+  function createIconButton(title, action, iconMarkup) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tm-icon-button';
+    button.dataset.action = action;
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    button.innerHTML = iconMarkup;
+    return button;
+  }
+
+  function syncDockState() {
+    if (!dock || !pinButton || !sendButton) {
+      return;
+    }
+
+    dock.dataset.pinned = String(!!uiState.pinned);
+    pinButton.dataset.active = String(!!uiState.pinned);
+    pinButton.title = uiState.pinned ? 'Unpin dock' : 'Pin dock';
+    pinButton.setAttribute('aria-label', pinButton.title);
+
+    const currentDomainEnabled = isCurrentDomainEnabled();
+
+    sendButton.disabled = !currentDomainEnabled;
+
+    if (!currentDomainEnabled) {
+      setSendButtonState('idle', 'Current domain is not enabled in config');
       return;
     }
 
     if (!config.webhookUrl) {
-      setTemporaryState('error', 'No webhook');
+      setSendButtonState('idle', 'Webhook URL is not configured');
+      return;
+    }
+
+    setSendButtonState('idle', 'Send current URL to webhook');
+  }
+
+  function toggleDockOpen() {
+    if (!dock) {
+      return;
+    }
+
+    if (uiState.pinned) {
+      return;
+    }
+
+    dock.dataset.open = dock.dataset.open === 'true' ? 'false' : 'true';
+  }
+
+  function togglePin() {
+    uiState.pinned = !uiState.pinned;
+    saveUiState();
+
+    if (dock) {
+      dock.dataset.open = uiState.pinned ? 'true' : dock.dataset.open;
+    }
+
+    syncDockState();
+  }
+
+  function sendCurrentUrl() {
+    if (!sendButton || sendButton.dataset.state === 'sending') {
+      return;
+    }
+
+    if (!isCurrentDomainEnabled()) {
+      setSendButtonState('error', 'Current domain is not enabled in config');
+      resetSendButtonStateLater();
+      return;
+    }
+
+    if (!config.webhookUrl) {
+      setSendButtonState('error', 'Webhook URL is not configured');
+      resetSendButtonStateLater();
       return;
     }
 
@@ -323,8 +532,7 @@
       headers.Authorization = authorization;
     }
 
-    button.dataset.state = 'sending';
-    button.textContent = SENDING_LABEL;
+    setSendButtonState('sending', 'Sending current URL');
 
     GM_xmlhttpRequest({
       method: 'POST',
@@ -336,66 +544,40 @@
       timeout: 10000,
       onload(response) {
         if (response.status >= 200 && response.status < 300) {
-          setTemporaryState('success', SUCCESS_LABEL);
+          setSendButtonState('success', 'Current URL sent');
+          resetSendButtonStateLater();
           return;
         }
 
         console.error('[Send Current URL to Webhook] Request failed with status:', response.status, response.responseText);
-        setTemporaryState('error', ERROR_LABEL);
+        setSendButtonState('error', `Request failed: ${response.status}`);
+        resetSendButtonStateLater();
       },
       onerror(error) {
         console.error('[Send Current URL to Webhook] Request error:', error);
-        setTemporaryState('error', ERROR_LABEL);
+        setSendButtonState('error', 'Request failed');
+        resetSendButtonStateLater();
       },
       ontimeout() {
         console.error('[Send Current URL to Webhook] Request timeout.');
-        setTemporaryState('error', ERROR_LABEL);
+        setSendButtonState('error', 'Request timeout');
+        resetSendButtonStateLater();
       },
     });
   }
 
-  function setTemporaryState(state, label) {
-    if (!button) {
+  function setSendButtonState(state, title) {
+    if (!sendButton) {
       return;
     }
 
-    button.dataset.state = state;
-    button.textContent = label;
-
-    window.setTimeout(() => {
-      button.dataset.state = 'idle';
-      button.textContent = DEFAULT_LABEL;
-    }, 1800);
+    sendButton.dataset.state = state;
+    sendButton.title = title;
+    sendButton.setAttribute('aria-label', title);
   }
 
-  function renderButton() {
-    const shouldShow = isDomainEnabled(window.location.hostname, config.enabledDomains);
-
-    if (!shouldShow) {
-      if (button) {
-        button.remove();
-        button = null;
-      }
-      return;
-    }
-
-    if (button) {
-      return;
-    }
-
-    button = document.createElement('button');
-    button.id = BUTTON_ID;
-    button.type = 'button';
-    button.textContent = DEFAULT_LABEL;
-    button.title = `Send current page URL to webhook (${SHORTCUT_HINT} to configure)`;
-    button.setAttribute('aria-label', button.title);
-    button.dataset.state = 'idle';
-    button.addEventListener('click', sendCurrentUrl);
-    document.body.appendChild(button);
-
-    if (!config.webhookUrl) {
-      console.warn('[Send Current URL to Webhook] webhookUrl is not configured. Press Alt+C to configure.');
-    }
+  function resetSendButtonStateLater() {
+    window.setTimeout(syncDockState, 1800);
   }
 
   function installKeyboardShortcut() {
@@ -436,13 +618,13 @@
         <header>
           <div>
             <h2 id="${MODAL_ID}-title">Send URL Config</h2>
-            <p>按 ${SHORTCUT_HINT} 打开或关闭。保存后会在这个脚本的所有页面中通用。</p>
+            <p>Press ${SHORTCUT_HINT} to open or close this modal. Saved values are shared across all pages.</p>
           </div>
-          <button type="button" class="tm-close" aria-label="Close config dialog">×</button>
+          <button type="button" class="tm-close" aria-label="Close config dialog">x</button>
         </header>
         <form></form>
         <footer>
-          <div class="tm-shortcut-hint">域名名单只影响右上角发送按钮，不影响配置界面。</div>
+          <div class="tm-shortcut-hint">The dock is always visible. Domain config only controls whether send is allowed on the current site.</div>
           <div class="tm-actions">
             <button type="button" class="tm-secondary" data-action="cancel">Cancel</button>
             <button type="submit" form="${MODAL_ID}-form" class="tm-primary">Save</button>
@@ -579,9 +761,13 @@
     });
 
     config = normalizeConfig(nextConfig);
-    GM_setValue(STORAGE_KEY, JSON.stringify(config));
+    GM_setValue(CONFIG_STORAGE_KEY, JSON.stringify(config));
     closeConfigModal();
-    renderButton();
+    syncDockState();
+  }
+
+  function isCurrentDomainEnabled() {
+    return isDomainEnabled(window.location.hostname, config.enabledDomains);
   }
 
   function isDomainEnabled(hostname, enabledDomains) {
@@ -638,7 +824,7 @@
   }
 
   function loadConfig() {
-    const rawValue = GM_getValue(STORAGE_KEY, '');
+    const rawValue = GM_getValue(CONFIG_STORAGE_KEY, '');
 
     if (!rawValue) {
       return cloneConfig(DEFAULT_CONFIG);
@@ -651,6 +837,30 @@
       console.error('[Send Current URL to Webhook] Failed to parse saved config:', error);
       return cloneConfig(DEFAULT_CONFIG);
     }
+  }
+
+  function loadUiState() {
+    const rawValue = GM_getValue(UI_STORAGE_KEY, '');
+
+    if (!rawValue) {
+      return { ...DEFAULT_UI_STATE };
+    }
+
+    try {
+      const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+      return {
+        pinned: !!parsed.pinned,
+      };
+    } catch (error) {
+      console.error('[Send Current URL to Webhook] Failed to parse saved UI state:', error);
+      return { ...DEFAULT_UI_STATE };
+    }
+  }
+
+  function saveUiState() {
+    GM_setValue(UI_STORAGE_KEY, JSON.stringify({
+      pinned: !!uiState.pinned,
+    }));
   }
 
   function normalizeConfig(source) {
@@ -716,5 +926,44 @@
       && !event.metaKey
       && !event.shiftKey
       && event.code === 'KeyC';
+  }
+
+  function iconGrip() {
+    return [
+      '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">',
+      '<path d="M8 6h8"></path>',
+      '<path d="M8 12h8"></path>',
+      '<path d="M8 18h8"></path>',
+      '</svg>',
+    ].join('');
+  }
+
+  function iconPin() {
+    return [
+      '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
+      '<path d="M15 4l5 5"></path>',
+      '<path d="M10 9l5 5"></path>',
+      '<path d="M8 21l4-9"></path>',
+      '<path d="M5 14l9-9"></path>',
+      '</svg>',
+    ].join('');
+  }
+
+  function iconSend() {
+    return [
+      '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
+      '<path d="M22 2L11 13"></path>',
+      '<path d="M22 2L15 22L11 13L2 9L22 2Z"></path>',
+      '</svg>',
+    ].join('');
+  }
+
+  function iconSettings() {
+    return [
+      '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
+      '<circle cx="12" cy="12" r="3"></circle>',
+      '<path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 1-3 0 1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 1 0-3 1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 1 3 0 1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c0 .38.22.74.6 1a1.7 1.7 0 0 1 0 3c-.38.26-.6.62-.6 1Z"></path>',
+      '</svg>',
+    ].join('');
   }
 })();

@@ -1,11 +1,15 @@
 # Send Current URL to Webhook
 
-在页面右上角添加一个可滑出的按钮。鼠标移入时按钮完整展开，平时只显示右侧一小段边缘。点击后会把当前页面 URL 发送到指定 webhook。
+在页面右上角添加一个始终可见的折叠式控制条。默认只露出一小段边缘，鼠标移入后向左滑出完整控件区。
 
 ## 功能
 
-- 固定在页面右上角
-- 悬停时滑出，离开时收回
+- 固定在页面右上角，所有网页都可见
+- 默认折叠，只显示一小段边缘
+- 鼠标悬停时滑出，鼠标移开后自动收回
+- 提供 3 个纯图标按钮：`pin`、`send`、`config`
+- `pin` 点击后保持展开，再点一次取消固定
+- `config` 按钮和 `Alt+C` 都可以打开配置弹窗
 - 按 `Alt+C` 打开配置弹窗，macOS 上对应 `Option+C`
 - 配置保存在 Tampermonkey 存储中，整个脚本全局共用一次配置
 - 点击后使用 `POST` 发送当前页面 URL
@@ -31,7 +35,8 @@
 - 点击弹窗中的 `Save`
 - 保存后立即生效
 - 配置存储在脚本内部，所有页面共享
-- 域名名单只控制右上角发送按钮是否显示，不影响 `Alt+C` 打开配置界面
+- 右上角控制条始终显示
+- 域名名单只控制当前页面是否允许点击 `send`
 
 域名匹配规则：
 
@@ -68,6 +73,7 @@ Authorization: Basic <base64(user:password)>
 2. 新建脚本
 3. 将 [`send-current-url-to-webhook.user.js`](/Volumes/local/Project/github/tampermonkey-projects/scripts/send-current-url-to-webhook/send-current-url-to-webhook.user.js) 内容粘贴进去
 4. 保存脚本
-5. 打开任意页面，按 `Alt+C`
-6. 填写配置并保存
-7. 刷新目标页面
+5. 打开任意页面，找到右上角露出的一小段控制条
+6. 点击 `config` 图标或按 `Alt+C`
+7. 填写配置并保存
+8. 在已启用的域名页面点击 `send` 图标发送当前 URL
