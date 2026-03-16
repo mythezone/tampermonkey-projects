@@ -41,8 +41,14 @@
 域名匹配规则：
 
 - 填 `example.com` 时，`example.com` 和任意子域名都会匹配
+- 填 `*.github.io` 时，仅匹配 `foo.github.io` 这类子域名，不匹配根域名 `github.io`
 - 填 `news.example.org` 时，仅该域名及其子域名匹配
 - 填 `*` 时，所有域名都启用
+
+如果发送图标是灰色的，通常表示当前页面域名没有命中 `enabledDomains`。例如：
+
+- 当前页面是 `https://myname.github.io/`，可填写 `github.io`
+- 如果只想匹配子域名，可填写 `*.github.io`
 
 ## 请求格式
 

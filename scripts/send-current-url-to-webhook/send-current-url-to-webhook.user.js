@@ -72,8 +72,8 @@
           path: 'enabledDomains',
           label: 'Domain List',
           type: 'textarea',
-          placeholder: 'example.com\nnews.example.org\n*',
-          description: 'One domain per line. Supports subdomains. Use * for all domains.',
+          placeholder: 'example.com\n*.github.io\n*',
+          description: 'One domain per line. Supports subdomains and leading wildcard patterns. Use * for all domains.',
         },
       ],
     },
@@ -790,6 +790,11 @@
 
       if (normalizedDomain === '*') {
         return true;
+      }
+
+      if (normalizedDomain.startsWith('*.') && normalizedDomain.length > 2) {
+        const wildcardBase = normalizedDomain.slice(2);
+        return normalizedHost.endsWith(`.${wildcardBase}`);
       }
 
       return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);

@@ -37,10 +37,9 @@ const CONFIG_SCHEMA = [
         path: 'enabledDomains',
         label: 'Domain List',
         type: 'textarea',
-        placeholder: 'example.com\n*.example.org',
-        description: 'One domain per line.',
+        placeholder: 'example.com\n*.github.io\n*',
+        description: 'One domain per line. Supports leading wildcard patterns.',
       },
     ],
   },
 ];
-
