@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Send Current URL to Webhook
 // @namespace    https://github.com/mythezone/tampermonkey-projects
-// @version      1.2.0
+// @version      1.2.1
 // @description  Add a slide-out control dock that POSTs the current page URL to a webhook.
 // @author       mythezone
 // @match        *://*/*
@@ -14,19 +14,19 @@
 // ==/UserScript==
 
 (function () {
-  'use strict';
+  "use strict";
 
-  const DOCK_ID = 'tm-send-url-to-webhook-dock';
-  const MODAL_ID = 'tm-send-url-to-webhook-modal';
-  const OVERLAY_ID = 'tm-send-url-to-webhook-overlay';
-  const CONFIG_STORAGE_KEY = 'tm-send-url-to-webhook-config';
-  const UI_STORAGE_KEY = 'tm-send-url-to-webhook-ui';
-  const SHORTCUT_HINT = 'Alt+C';
+  const DOCK_ID = "tm-send-url-to-webhook-dock";
+  const MODAL_ID = "tm-send-url-to-webhook-modal";
+  const OVERLAY_ID = "tm-send-url-to-webhook-overlay";
+  const CONFIG_STORAGE_KEY = "tm-send-url-to-webhook-config";
+  const UI_STORAGE_KEY = "tm-send-url-to-webhook-ui";
+  const SHORTCUT_HINT = "Alt+C";
   const DEFAULT_CONFIG = {
-    webhookUrl: '',
+    webhookUrl: "",
     auth: {
-      user: '',
-      password: '',
+      user: "",
+      password: "",
     },
     enabledDomains: [],
   };
@@ -35,45 +35,47 @@
   };
   const CONFIG_SCHEMA = [
     {
-      title: 'Webhook',
+      title: "Webhook",
       fields: [
         {
-          path: 'webhookUrl',
-          label: 'Webhook URL',
-          type: 'url',
-          placeholder: 'https://your-webhook.example.com/endpoint',
-          description: 'Click send to POST the current page URL to this webhook.',
+          path: "webhookUrl",
+          label: "Webhook URL",
+          type: "url",
+          placeholder: "https://your-webhook.example.com/endpoint",
+          description:
+            "Click send to POST the current page URL to this webhook.",
         },
       ],
     },
     {
-      title: 'Basic Auth',
+      title: "Basic Auth",
       fields: [
         {
-          path: 'auth.user',
-          label: 'User',
-          type: 'text',
-          placeholder: 'username',
-          description: 'Leave empty to skip the Authorization header.',
+          path: "auth.user",
+          label: "User",
+          type: "text",
+          placeholder: "username",
+          description: "Leave empty to skip the Authorization header.",
         },
         {
-          path: 'auth.password',
-          label: 'Password',
-          type: 'password',
-          placeholder: 'password',
-          description: 'Paired with the username as Basic Auth.',
+          path: "auth.password",
+          label: "Password",
+          type: "password",
+          placeholder: "password",
+          description: "Paired with the username as Basic Auth.",
         },
       ],
     },
     {
-      title: 'Enabled Domains',
+      title: "Enabled Domains",
       fields: [
         {
-          path: 'enabledDomains',
-          label: 'Domain List',
-          type: 'textarea',
-          placeholder: 'example.com\n*.github.io\n*',
-          description: 'One domain per line. Supports subdomains and leading wildcard patterns. Use * for all domains.',
+          path: "enabledDomains",
+          label: "Domain List",
+          type: "textarea",
+          placeholder: "example.com\n*.github.io\n*",
+          description:
+            "One domain per line. Supports subdomains and leading wildcard patterns. Use * for all domains.",
         },
       ],
     },
@@ -392,26 +394,34 @@
       return;
     }
 
-    dock = document.createElement('div');
+    dock = document.createElement("div");
     dock.id = DOCK_ID;
-    dock.dataset.open = 'false';
+    dock.dataset.open = "false";
     dock.dataset.pinned = String(!!uiState.pinned);
 
-    handleButton = createIconButton('Open webhook tools', 'handle', iconGrip());
-    handleButton.className = 'tm-dock-handle';
-    handleButton.addEventListener('click', toggleDockOpen);
+    handleButton = createIconButton("Open webhook tools", "handle", iconGrip());
+    handleButton.className = "tm-dock-handle";
+    handleButton.addEventListener("click", toggleDockOpen);
 
-    const actions = document.createElement('div');
-    actions.className = 'tm-dock-actions';
+    const actions = document.createElement("div");
+    actions.className = "tm-dock-actions";
 
-    pinButton = createIconButton('Pin dock', 'pin', iconPin());
-    pinButton.addEventListener('click', togglePin);
+    pinButton = createIconButton("Pin dock", "pin", iconPin());
+    pinButton.addEventListener("click", togglePin);
 
-    sendButton = createIconButton('Send current URL to webhook', 'send', iconSend());
-    sendButton.addEventListener('click', sendCurrentUrl);
+    sendButton = createIconButton(
+      "Send current URL to webhook",
+      "send",
+      iconSend(),
+    );
+    sendButton.addEventListener("click", sendCurrentUrl);
 
-    configButton = createIconButton(`Open config (${SHORTCUT_HINT})`, 'config', iconSettings());
-    configButton.addEventListener('click', openConfigModal);
+    configButton = createIconButton(
+      `Open config (${SHORTCUT_HINT})`,
+      "config",
+      iconSettings(),
+    );
+    configButton.addEventListener("click", openConfigModal);
 
     actions.appendChild(pinButton);
     actions.appendChild(sendButton);
@@ -420,24 +430,24 @@
     dock.appendChild(handleButton);
     dock.appendChild(actions);
 
-    dock.addEventListener('mouseenter', () => {
-      dock.dataset.open = 'true';
+    dock.addEventListener("mouseenter", () => {
+      dock.dataset.open = "true";
     });
 
-    dock.addEventListener('mouseleave', () => {
+    dock.addEventListener("mouseleave", () => {
       if (!uiState.pinned) {
-        dock.dataset.open = 'false';
+        dock.dataset.open = "false";
       }
     });
 
-    dock.addEventListener('focusin', () => {
-      dock.dataset.open = 'true';
+    dock.addEventListener("focusin", () => {
+      dock.dataset.open = "true";
     });
 
-    dock.addEventListener('focusout', () => {
+    dock.addEventListener("focusout", () => {
       window.setTimeout(() => {
         if (!dock.contains(document.activeElement) && !uiState.pinned) {
-          dock.dataset.open = 'false';
+          dock.dataset.open = "false";
         }
       }, 0);
     });
@@ -446,12 +456,12 @@
   }
 
   function createIconButton(title, action, iconMarkup) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'tm-icon-button';
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "tm-icon-button";
     button.dataset.action = action;
     button.title = title;
-    button.setAttribute('aria-label', title);
+    button.setAttribute("aria-label", title);
     button.innerHTML = iconMarkup;
     return button;
   }
@@ -463,24 +473,24 @@
 
     dock.dataset.pinned = String(!!uiState.pinned);
     pinButton.dataset.active = String(!!uiState.pinned);
-    pinButton.title = uiState.pinned ? 'Unpin dock' : 'Pin dock';
-    pinButton.setAttribute('aria-label', pinButton.title);
+    pinButton.title = uiState.pinned ? "Unpin dock" : "Pin dock";
+    pinButton.setAttribute("aria-label", pinButton.title);
 
     const currentDomainEnabled = isCurrentDomainEnabled();
 
     sendButton.disabled = !currentDomainEnabled;
 
     if (!currentDomainEnabled) {
-      setSendButtonState('idle', 'Current domain is not enabled in config');
+      setSendButtonState("idle", "Current domain is not enabled in config");
       return;
     }
 
     if (!config.webhookUrl) {
-      setSendButtonState('idle', 'Webhook URL is not configured');
+      setSendButtonState("idle", "Webhook URL is not configured");
       return;
     }
 
-    setSendButtonState('idle', 'Send current URL to webhook');
+    setSendButtonState("idle", "Send current URL to webhook");
   }
 
   function toggleDockOpen() {
@@ -492,7 +502,7 @@
       return;
     }
 
-    dock.dataset.open = dock.dataset.open === 'true' ? 'false' : 'true';
+    dock.dataset.open = dock.dataset.open === "true" ? "false" : "true";
   }
 
   function togglePin() {
@@ -500,31 +510,31 @@
     saveUiState();
 
     if (dock) {
-      dock.dataset.open = uiState.pinned ? 'true' : dock.dataset.open;
+      dock.dataset.open = uiState.pinned ? "true" : dock.dataset.open;
     }
 
     syncDockState();
   }
 
   function sendCurrentUrl() {
-    if (!sendButton || sendButton.dataset.state === 'sending') {
+    if (!sendButton || sendButton.dataset.state === "sending") {
       return;
     }
 
     if (!isCurrentDomainEnabled()) {
-      setSendButtonState('error', 'Current domain is not enabled in config');
+      setSendButtonState("error", "Current domain is not enabled in config");
       resetSendButtonStateLater();
       return;
     }
 
     if (!config.webhookUrl) {
-      setSendButtonState('error', 'Webhook URL is not configured');
+      setSendButtonState("error", "Webhook URL is not configured");
       resetSendButtonStateLater();
       return;
     }
 
     const headers = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
 
     const authorization = buildBasicAuthHeader(config.auth);
@@ -532,10 +542,10 @@
       headers.Authorization = authorization;
     }
 
-    setSendButtonState('sending', 'Sending current URL');
+    setSendButtonState("sending", "Sending current URL");
 
     GM_xmlhttpRequest({
-      method: 'POST',
+      method: "POST",
       url: config.webhookUrl,
       headers,
       data: JSON.stringify({
@@ -544,23 +554,27 @@
       timeout: 10000,
       onload(response) {
         if (response.status >= 200 && response.status < 300) {
-          setSendButtonState('success', 'Current URL sent');
+          setSendButtonState("success", "Current URL sent");
           resetSendButtonStateLater();
           return;
         }
 
-        console.error('[Send Current URL to Webhook] Request failed with status:', response.status, response.responseText);
-        setSendButtonState('error', `Request failed: ${response.status}`);
+        console.error(
+          "[Send Current URL to Webhook] Request failed with status:",
+          response.status,
+          response.responseText,
+        );
+        setSendButtonState("error", `Request failed: ${response.status}`);
         resetSendButtonStateLater();
       },
       onerror(error) {
-        console.error('[Send Current URL to Webhook] Request error:', error);
-        setSendButtonState('error', 'Request failed');
+        console.error("[Send Current URL to Webhook] Request error:", error);
+        setSendButtonState("error", "Request failed");
         resetSendButtonStateLater();
       },
       ontimeout() {
-        console.error('[Send Current URL to Webhook] Request timeout.');
-        setSendButtonState('error', 'Request timeout');
+        console.error("[Send Current URL to Webhook] Request timeout.");
+        setSendButtonState("error", "Request timeout");
         resetSendButtonStateLater();
       },
     });
@@ -573,7 +587,7 @@
 
     sendButton.dataset.state = state;
     sendButton.title = title;
-    sendButton.setAttribute('aria-label', title);
+    sendButton.setAttribute("aria-label", title);
   }
 
   function resetSendButtonStateLater() {
@@ -581,8 +595,8 @@
   }
 
   function installKeyboardShortcut() {
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && isModalOpen()) {
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && isModalOpen()) {
         event.preventDefault();
         closeConfigModal();
         return;
@@ -606,13 +620,13 @@
   function installConfigModal() {
     if (document.getElementById(OVERLAY_ID)) {
       overlay = document.getElementById(OVERLAY_ID);
-      form = overlay.querySelector('form');
+      form = overlay.querySelector("form");
       return;
     }
 
-    overlay = document.createElement('div');
+    overlay = document.createElement("div");
     overlay.id = OVERLAY_ID;
-    overlay.dataset.open = 'false';
+    overlay.dataset.open = "false";
     overlay.innerHTML = `
       <div id="${MODAL_ID}" role="dialog" aria-modal="true" aria-labelledby="${MODAL_ID}-title">
         <header>
@@ -633,19 +647,23 @@
       </div>
     `;
 
-    form = overlay.querySelector('form');
+    form = overlay.querySelector("form");
     form.id = `${MODAL_ID}-form`;
     form.appendChild(buildConfigFormFields());
 
-    overlay.addEventListener('click', (event) => {
+    overlay.addEventListener("click", (event) => {
       if (event.target === overlay) {
         closeConfigModal();
       }
     });
 
-    overlay.querySelector('.tm-close').addEventListener('click', closeConfigModal);
-    overlay.querySelector('[data-action="cancel"]').addEventListener('click', closeConfigModal);
-    form.addEventListener('submit', handleConfigSubmit);
+    overlay
+      .querySelector(".tm-close")
+      .addEventListener("click", closeConfigModal);
+    overlay
+      .querySelector('[data-action="cancel"]')
+      .addEventListener("click", closeConfigModal);
+    form.addEventListener("submit", handleConfigSubmit);
 
     document.body.appendChild(overlay);
   }
@@ -654,8 +672,8 @@
     const fragment = document.createDocumentFragment();
 
     CONFIG_SCHEMA.forEach((section) => {
-      const sectionElement = document.createElement('section');
-      const title = document.createElement('h3');
+      const sectionElement = document.createElement("section");
+      const title = document.createElement("h3");
       title.textContent = section.title;
       sectionElement.appendChild(title);
 
@@ -670,28 +688,29 @@
   }
 
   function buildField(field) {
-    const label = document.createElement('label');
-    const labelText = document.createElement('span');
-    labelText.className = 'tm-field-label';
+    const label = document.createElement("label");
+    const labelText = document.createElement("span");
+    labelText.className = "tm-field-label";
     labelText.textContent = field.label;
 
-    const control = field.type === 'textarea'
-      ? document.createElement('textarea')
-      : document.createElement('input');
+    const control =
+      field.type === "textarea"
+        ? document.createElement("textarea")
+        : document.createElement("input");
 
     control.name = field.path;
-    control.placeholder = field.placeholder || '';
+    control.placeholder = field.placeholder || "";
 
-    if (field.type !== 'textarea') {
-      control.type = field.type || 'text';
+    if (field.type !== "textarea") {
+      control.type = field.type || "text";
     }
 
     label.appendChild(labelText);
     label.appendChild(control);
 
     if (field.description) {
-      const description = document.createElement('p');
-      description.className = 'tm-field-description';
+      const description = document.createElement("p");
+      description.className = "tm-field-description";
       description.textContent = field.description;
       label.appendChild(description);
     }
@@ -705,10 +724,10 @@
     }
 
     populateForm(config);
-    overlay.dataset.open = 'true';
-    document.body.style.overflow = 'hidden';
+    overlay.dataset.open = "true";
+    document.body.style.overflow = "hidden";
 
-    const firstField = form.querySelector('input, textarea');
+    const firstField = form.querySelector("input, textarea");
     if (firstField) {
       firstField.focus();
     }
@@ -719,12 +738,12 @@
       return;
     }
 
-    overlay.dataset.open = 'false';
-    document.body.style.overflow = '';
+    overlay.dataset.open = "false";
+    document.body.style.overflow = "";
   }
 
   function isModalOpen() {
-    return !!overlay && overlay.dataset.open === 'true';
+    return !!overlay && overlay.dataset.open === "true";
   }
 
   function populateForm(currentConfig) {
@@ -736,9 +755,10 @@
         }
 
         const value = getValueByPath(currentConfig, field.path);
-        control.value = field.type === 'textarea' && Array.isArray(value)
-          ? value.join('\n')
-          : (value || '');
+        control.value =
+          field.type === "textarea" && Array.isArray(value)
+            ? value.join("\n")
+            : value || "";
       });
     });
   }
@@ -751,10 +771,11 @@
     CONFIG_SCHEMA.forEach((section) => {
       section.fields.forEach((field) => {
         const control = getFieldControl(field.path);
-        const rawValue = control ? control.value : '';
-        const normalizedValue = field.type === 'textarea'
-          ? parseDomainList(rawValue)
-          : rawValue.trim();
+        const rawValue = control ? control.value : "";
+        const normalizedValue =
+          field.type === "textarea"
+            ? parseDomainList(rawValue)
+            : rawValue.trim();
 
         setValueByPath(nextConfig, field.path, normalizedValue);
       });
@@ -778,7 +799,7 @@
     const normalizedHost = hostname.trim().toLowerCase();
 
     return enabledDomains.some((domain) => {
-      if (typeof domain !== 'string') {
+      if (typeof domain !== "string") {
         return false;
       }
 
@@ -788,29 +809,36 @@
         return false;
       }
 
-      if (normalizedDomain === '*') {
+      if (normalizedDomain === "*") {
         return true;
       }
 
-      if (normalizedDomain.startsWith('*.') && normalizedDomain.length > 2) {
+      if (normalizedDomain.startsWith("*.") && normalizedDomain.length > 2) {
         const wildcardBase = normalizedDomain.slice(2);
         return normalizedHost.endsWith(`.${wildcardBase}`);
       }
 
-      return normalizedHost === normalizedDomain || normalizedHost.endsWith(`.${normalizedDomain}`);
+      return (
+        normalizedHost === normalizedDomain ||
+        normalizedHost.endsWith(`.${normalizedDomain}`)
+      );
     });
   }
 
   function buildBasicAuthHeader(auth) {
-    if (!auth || typeof auth.user !== 'string' || typeof auth.password !== 'string') {
-      return '';
+    if (
+      !auth ||
+      typeof auth.user !== "string" ||
+      typeof auth.password !== "string"
+    ) {
+      return "";
     }
 
     const user = auth.user.trim();
     const password = auth.password.trim();
 
     if (!user && !password) {
-      return '';
+      return "";
     }
 
     return `Basic ${utf8ToBase64(`${user}:${password}`)}`;
@@ -819,7 +847,7 @@
   function utf8ToBase64(value) {
     const bytes = new TextEncoder().encode(value);
     const chunkSize = 0x8000;
-    let binary = '';
+    let binary = "";
 
     for (let i = 0; i < bytes.length; i += chunkSize) {
       binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
@@ -829,54 +857,70 @@
   }
 
   function loadConfig() {
-    const rawValue = GM_getValue(CONFIG_STORAGE_KEY, '');
+    const rawValue = GM_getValue(CONFIG_STORAGE_KEY, "");
 
     if (!rawValue) {
       return cloneConfig(DEFAULT_CONFIG);
     }
 
     try {
-      const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+      const parsed =
+        typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
       return normalizeConfig(parsed);
     } catch (error) {
-      console.error('[Send Current URL to Webhook] Failed to parse saved config:', error);
+      console.error(
+        "[Send Current URL to Webhook] Failed to parse saved config:",
+        error,
+      );
       return cloneConfig(DEFAULT_CONFIG);
     }
   }
 
   function loadUiState() {
-    const rawValue = GM_getValue(UI_STORAGE_KEY, '');
+    const rawValue = GM_getValue(UI_STORAGE_KEY, "");
 
     if (!rawValue) {
       return { ...DEFAULT_UI_STATE };
     }
 
     try {
-      const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+      const parsed =
+        typeof rawValue === "string" ? JSON.parse(rawValue) : rawValue;
       return {
         pinned: !!parsed.pinned,
       };
     } catch (error) {
-      console.error('[Send Current URL to Webhook] Failed to parse saved UI state:', error);
+      console.error(
+        "[Send Current URL to Webhook] Failed to parse saved UI state:",
+        error,
+      );
       return { ...DEFAULT_UI_STATE };
     }
   }
 
   function saveUiState() {
-    GM_setValue(UI_STORAGE_KEY, JSON.stringify({
-      pinned: !!uiState.pinned,
-    }));
+    GM_setValue(
+      UI_STORAGE_KEY,
+      JSON.stringify({
+        pinned: !!uiState.pinned,
+      }),
+    );
   }
 
   function normalizeConfig(source) {
     const normalized = cloneConfig(DEFAULT_CONFIG);
 
-    if (source && typeof source === 'object') {
-      normalized.webhookUrl = typeof source.webhookUrl === 'string' ? source.webhookUrl.trim() : '';
-      normalized.auth.user = typeof source.auth?.user === 'string' ? source.auth.user.trim() : '';
-      normalized.auth.password = typeof source.auth?.password === 'string' ? source.auth.password.trim() : '';
+    if (source && typeof source === "object") {
+      normalized.webhookUrl =
+        typeof source.webhookUrl === "string" ? source.webhookUrl.trim() : "";
+      normalized.auth.user =
+        typeof source.auth?.user === "string" ? source.auth.user.trim() : "";
+      normalized.auth.password =
+        typeof source.auth?.password === "string"
+          ? source.auth.password.trim()
+          : "";
       normalized.enabledDomains = Array.isArray(source.enabledDomains)
-        ? parseDomainList(source.enabledDomains.join('\n'))
+        ? parseDomainList(source.enabledDomains.join("\n"))
         : [];
     }
 
@@ -884,7 +928,7 @@
   }
 
   function parseDomainList(value) {
-    return String(value || '')
+    return String(value || "")
       .split(/[\n,]/)
       .map((item) => item.trim().toLowerCase())
       .filter(Boolean)
@@ -903,7 +947,9 @@
   }
 
   function getValueByPath(source, path) {
-    return path.split('.').reduce((current, key) => (current ? current[key] : undefined), source);
+    return path
+      .split(".")
+      .reduce((current, key) => (current ? current[key] : undefined), source);
   }
 
   function getFieldControl(path) {
@@ -911,12 +957,12 @@
   }
 
   function setValueByPath(target, path, value) {
-    const parts = path.split('.');
+    const parts = path.split(".");
     const last = parts.pop();
     let cursor = target;
 
     parts.forEach((part) => {
-      if (!cursor[part] || typeof cursor[part] !== 'object') {
+      if (!cursor[part] || typeof cursor[part] !== "object") {
         cursor[part] = {};
       }
       cursor = cursor[part];
@@ -926,11 +972,13 @@
   }
 
   function isShortcutPressed(event) {
-    return event.altKey
-      && !event.ctrlKey
-      && !event.metaKey
-      && !event.shiftKey
-      && event.code === 'KeyC';
+    return (
+      event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.shiftKey &&
+      event.code === "KeyC"
+    );
   }
 
   function iconGrip() {
@@ -939,8 +987,8 @@
       '<path d="M8 6h8"></path>',
       '<path d="M8 12h8"></path>',
       '<path d="M8 18h8"></path>',
-      '</svg>',
-    ].join('');
+      "</svg>",
+    ].join("");
   }
 
   function iconPin() {
@@ -950,8 +998,8 @@
       '<path d="M10 9l5 5"></path>',
       '<path d="M8 21l4-9"></path>',
       '<path d="M5 14l9-9"></path>',
-      '</svg>',
-    ].join('');
+      "</svg>",
+    ].join("");
   }
 
   function iconSend() {
@@ -959,8 +1007,8 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
       '<path d="M22 2L11 13"></path>',
       '<path d="M22 2L15 22L11 13L2 9L22 2Z"></path>',
-      '</svg>',
-    ].join('');
+      "</svg>",
+    ].join("");
   }
 
   function iconSettings() {
@@ -968,7 +1016,7 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
       '<circle cx="12" cy="12" r="3"></circle>',
       '<path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 1-3 0 1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 1 0-3 1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 1 3 0 1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c0 .38.22.74.6 1a1.7 1.7 0 0 1 0 3c-.38.26-.6.62-.6 1Z"></path>',
-      '</svg>',
-    ].join('');
+      "</svg>",
+    ].join("");
   }
 })();
